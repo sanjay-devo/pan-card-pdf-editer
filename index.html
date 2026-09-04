@@ -184,6 +184,27 @@
 		$('redoButton').onclick=()=>{if(!state.redoHistory.length)return;state.history.push(JSON.stringify(state.overlays));state.overlays=JSON.parse(state.redoHistory.pop());state.selected=null;closeContextMenu();renderOverlays();};
 		document.onkeydown=(event)=>{if(!state.selected && (event.key==='ArrowLeft'||event.key==='ArrowRight')){event.preventDefault();changePage(state.page+(event.key==='ArrowRight'?1:-1));return;}if(!state.selected)return;const item=selectedOverlay();if(!item)return;if(event.key==='Escape'){$('deselectButton').click();return;}if(event.key==='Delete'||event.key==='Backspace'){deleteOverlay();return;}const step=event.shiftKey?10:2;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();saveHistory();if(event.key==='ArrowLeft')item.x=Math.max(0,item.x-step);if(event.key==='ArrowRight')item.x=Math.min(state.baseViewport.width-item.width,item.x+step);if(event.key==='ArrowUp')item.y=Math.max(0,item.y-step);if(event.key==='ArrowDown')item.y=Math.min(state.baseViewport.height-item.height,item.y+step);renderOverlays();}};
 		window.addEventListener('resize',()=>{if(state.pdf)renderPage();});
-	</script>
+		const imageInput = document.createElement('input');
+		imageInput.type = 'file';
+		imageInput.accept = 'image/jpeg,image/png,.jpg,.jpeg,.png';
+		imageInput.className = 'hidden';
+		document.body.appendChild(imageInput);
+		const imageSection = document.createElement('div');
+		imageSection.className = 'tool-section';
+		imageSection.innerHTML = '<div class="tool-heading">Image</div><button class="tool-button" type="button"><span class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4z"/><circle cx="9" cy="10" r="2"/><path d="m4 16 4-4 3 3 3-3 6 6"/></svg></span><span>Add Image<small>JPG, JPEG or PNG</small></span></button>';
+		$('photoSection').before(imageSection);
+		const imageButton = imageSection.querySelector('.tool-button');
+		imageButton.onclick = () => openPicker(imageInput);
+		imageInput.onchange = () => { if(imageInput.files[0]) addImage(imageInput.files[0], 'photo'); };
+		$('photoSection').classList.add('hidden');
+		$('signatureSection').classList.add('hidden');
+		const originalUpdateControls = updateControls;
+		updateControls = () => {
+			originalUpdateControls();
+			imageSection.classList.toggle('hidden', state.autoSet);
+			$('photoSection').classList.toggle('hidden', !state.autoSet);
+			$('signatureSection').classList.toggle('hidden', !state.autoSet);
+		};
+</script>
 </body>
 </html>
