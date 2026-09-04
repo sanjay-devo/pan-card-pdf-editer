@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="theme-color" content="#f4f7fb">
+	<title>PAN Card PDF Editor</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+	<style>
+		:root { --ink:#182536; --muted:#718096; --line:#dfe6ef; --paper:#fff; --wash:#f4f7fb; --blue:#2563eb; --blue-dark:#1949b3; --mint:#e8f7f0; --green:#16805b; --orange:#e77925; --shadow:0 16px 45px rgba(26,51,84,.09); --radius:10px; }
+		* { box-sizing:border-box; }
+		body { margin:0; color:var(--ink); background:var(--wash); font-family:'DM Sans',sans-serif; font-size:15px; }
+		button, input { font:inherit; }
+		button { cursor:pointer; }
+		button:focus-visible, input:focus-visible, .drop-zone:focus-visible { outline:3px solid rgba(37,99,235,.28); outline-offset:2px; }
+		.app-header { height:72px; background:rgba(255,255,255,.94); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 34px; position:sticky; top:0; z-index:20; }
+		.brand { display:flex; align-items:center; gap:12px; font-family:'Space Grotesk',sans-serif; font-weight:700; letter-spacing:-.02em; font-size:19px; }
+		.brand-mark { width:35px; height:35px; border-radius:9px; background:var(--blue); color:white; display:grid; place-items:center; box-shadow:0 5px 12px rgba(37,99,235,.25); }
+		.brand-mark svg { width:20px; }
+		.header-actions { display:flex; gap:10px; align-items:center; }
+		.button { min-height:42px; border:1px solid transparent; border-radius:8px; padding:0 17px; display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:600; transition:background .2s, transform .2s, border .2s; }
+		.button:hover:not(:disabled) { transform:translateY(-1px); }
+		.button svg { width:17px; height:17px; }
+		.button.secondary { background:white; border-color:var(--line); color:var(--ink); }
+		.button.secondary:hover { border-color:#b6c5d8; background:#f9fbfd; }
+		.button.primary { background:var(--blue); color:white; box-shadow:0 5px 13px rgba(37,99,235,.18); }
+		.button.primary:hover:not(:disabled) { background:var(--blue-dark); }
+		.button:disabled { opacity:.45; cursor:not-allowed; box-shadow:none; }
+		main { max-width:1370px; margin:0 auto; padding:31px 34px 42px; }
+		.intro { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px; }
+		.eyebrow { color:var(--blue); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.13em; margin-bottom:8px; }
+		h1 { font:700 29px 'Space Grotesk',sans-serif; letter-spacing:-.04em; margin:0; }
+		.intro p { color:var(--muted); margin:8px 0 0; }
+		.privacy-note { color:var(--green); font-size:13px; background:var(--mint); padding:9px 13px; border-radius:7px; display:flex; gap:7px; align-items:center; white-space:nowrap; }
+		.privacy-note svg { width:16px; }
+		.workspace { background:white; border:1px solid var(--line); border-radius:12px; min-height:660px; box-shadow:var(--shadow); overflow:hidden; }
+		.empty-state { min-height:660px; display:grid; place-items:center; padding:50px 20px; }
+		.drop-zone { width:min(650px,100%); min-height:355px; border:1.5px dashed #b9c9dd; border-radius:12px; background:linear-gradient(145deg,#fbfdff,#f6faff); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; transition:.2s; }
+		.drop-zone.dragging { border-color:var(--blue); background:#edf4ff; transform:scale(1.01); }
+		.upload-icon { width:66px; height:66px; border-radius:18px; display:grid; place-items:center; color:var(--blue); background:#e4efff; margin-bottom:20px; }
+		.upload-icon svg { width:31px; height:31px; }
+		.drop-zone h2 { font:600 21px 'Space Grotesk',sans-serif; margin:0 0 8px; letter-spacing:-.02em; }
+		.drop-zone p { color:var(--muted); margin:0 0 22px; }
+		.drop-zone small { display:block; color:#96a4b7; margin-top:15px; }
+		.hidden { display:none !important; }
+		.editor { display:grid; grid-template-columns:minmax(0,1fr) 285px; min-height:660px; }
+		.document-area { background:#edf1f6; padding:25px; display:flex; flex-direction:column; min-width:0; }
+		.document-top { display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:13px; margin-bottom:18px; }
+		.page-count { font-weight:600; color:var(--ink); }
+		.zoom-controls { display:flex; align-items:center; gap:5px; }
+		.icon-button { width:36px; height:36px; background:white; border:1px solid var(--line); color:var(--ink); border-radius:7px; display:grid; place-items:center; }
+		.icon-button:hover { background:#f8fafc; border-color:#b9c6d7; }
+		.icon-button svg { width:16px; }
+		.zoom-value { min-width:52px; text-align:center; font-weight:600; font-size:13px; }
+		.paper-wrap { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; min-height:500px; padding:15px; }
+		.paper { position:relative; background:white; box-shadow:0 7px 24px rgba(31,48,70,.19); line-height:0; transform-origin:center center; }
+		#pdf-canvas { display:block; max-width:none; }
+		.overlay { position:absolute; border:2px solid transparent; cursor:move; touch-action:none; user-select:none; line-height:0; }
+		.overlay.selected { border-color:var(--blue); }
+		.overlay img { width:100%; height:100%; display:block; object-fit:contain; pointer-events:none; }
+		.overlay-label { position:absolute; left:-2px; top:-26px; background:var(--blue); color:white; font-size:11px; line-height:20px; padding:0 7px; border-radius:4px 4px 0 0; font-weight:700; opacity:0; transition:opacity .15s; }
+		.overlay.selected .overlay-label { opacity:1; }
+		.resize-handle { position:absolute; width:10px; height:10px; border:2px solid white; border-radius:2px; background:var(--blue); opacity:0; }
+		.overlay.selected .resize-handle { opacity:1; }
+		.resize-handle.nw { left:-6px; top:-6px; cursor:nwse-resize; } .resize-handle.ne { right:-6px; top:-6px; cursor:nesw-resize; } .resize-handle.sw { left:-6px; bottom:-6px; cursor:nesw-resize; } .resize-handle.se { right:-6px; bottom:-6px; cursor:nwse-resize; }
+		.editor-sidebar { border-left:1px solid var(--line); background:white; padding:25px 21px; display:flex; flex-direction:column; }
+		.sidebar-title { font:600 16px 'Space Grotesk',sans-serif; margin:0 0 5px; }
+		.sidebar-copy { color:var(--muted); line-height:1.5; font-size:13px; margin:0 0 22px; }
+		.tool-section { padding:19px 0; border-top:1px solid #edf0f4; }
+		.tool-section:first-of-type { border-top:0; padding-top:0; }
+		.tool-heading { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:13px; font-weight:700; }
+		.tool-heading span { color:var(--muted); font-weight:500; font-size:12px; }
+		.tool-button { width:100%; min-height:47px; display:flex; align-items:center; gap:11px; border:1px solid var(--line); border-radius:8px; background:white; color:var(--ink); padding:0 12px; text-align:left; font-weight:600; }
+		.tool-button:hover { border-color:#9bb5d8; background:#f7faff; }
+		.tool-button .tool-icon { width:28px; height:28px; display:grid; place-items:center; border-radius:6px; background:#edf4ff; color:var(--blue); }
+		.tool-button svg { width:16px; }
+		.tool-button small { display:block; color:var(--muted); font-size:11px; font-weight:400; margin-top:2px; }
+		.action-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+		.action-grid .button { padding:0 8px; font-size:12px; min-height:39px; }
+		.status-line { font-size:12px; color:var(--muted); line-height:1.45; padding:12px; background:#f7f9fc; border-radius:7px; }
+		.status-line strong { color:var(--ink); }
+		.sidebar-footer { margin-top:auto; padding-top:20px; }
+		.sidebar-footer .button { width:100%; }
+		.toast { position:fixed; right:24px; bottom:24px; color:white; padding:13px 17px; border-radius:8px; box-shadow:var(--shadow); font-size:14px; transform:translateY(18px); opacity:0; pointer-events:none; transition:.25s; z-index:40; }
+		.toast.show { transform:translateY(0); opacity:1; } .toast.success { background:#17805b; } .toast.error { background:#c53f3f; }
+		.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+		@media (max-width:800px) { .app-header { padding:0 16px; height:64px; } .brand { font-size:16px; } .brand-mark { width:32px; height:32px; } .header-actions .button { padding:0 11px; font-size:13px; } .header-actions .button.secondary { font-size:0; gap:0; } .header-actions .button.secondary svg { width:18px; } main { padding:22px 14px 30px; } .intro { display:block; } .privacy-note { width:max-content; margin-top:15px; } h1 { font-size:25px; } .editor { display:block; } .document-area { padding:15px 10px; min-height:520px; } .paper-wrap { min-height:390px; padding:10px 0; } .editor-sidebar { border-left:0; border-top:1px solid var(--line); padding:20px 16px; } .sidebar-footer { margin-top:20px; } .workspace, .empty-state { min-height:580px; } .drop-zone { min-height:310px; } }
+		@media (max-width:430px) { .brand span { max-width:145px; } .header-actions .primary-label { display:none; } .header-actions .button.primary { width:43px; padding:0; } }
+	</style>
+</head>
+<body>
+	<header class="app-header">
+		<div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span><span>PAN Card PDF Editor</span></div>
+		<div class="header-actions"><button class="button secondary" id="importButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 8l5-5 5 5M5 14v5h14v-5"/></svg><span>Import PDF</span></button><button class="button primary" id="saveButton" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span class="primary-label">Save PDF</span></button></div>
+	</header>
+	<main>
+		<div class="intro"><div><div class="eyebrow">Document utility</div><h1>Complete your PAN application</h1><p>Add your photo and signature with precise, visual control.</p></div><div class="privacy-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 6v5c0 5 3.4 8.8 8 10 4.6-1.2 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/></svg>Private by design · processed in your browser</div></div>
+		<section class="workspace" aria-label="PAN card document workspace">
+			<div class="empty-state" id="emptyState"><div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="Upload PAN card PDF"><div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M12 12v6M9.5 15.5 12 18l2.5-2.5"/></svg></div><h2>Drop PAN Card PDF here</h2><p>or click to browse</p><button class="button primary" id="browseButton" type="button">Choose PDF</button><small>Upload a filled PAN application PDF without photo and signature</small></div></div>
+			<div class="editor hidden" id="editor"><div class="document-area"><div class="document-top"><span class="page-count" id="pageCount">Page 1 of 1</span><div class="zoom-controls"><button class="icon-button" id="zoomOut" type="button" aria-label="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button><span class="zoom-value" id="zoomValue">100%</span><button class="icon-button" id="zoomIn" type="button" aria-label="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button><button class="button secondary" id="fitPage" type="button">Fit page</button></div></div><div class="paper-wrap" id="paperWrap"><div class="paper" id="paper"><canvas id="pdf-canvas"></canvas></div></div></div>
+				<aside class="editor-sidebar"><h2 class="sidebar-title">Add your details</h2><p class="sidebar-copy">Place each image over its designated area. Select an item to move or resize it.</p><div class="tool-section"><div class="tool-heading">Photo <span id="photoState">Not added</span></div><button class="tool-button" id="photoButton" type="button"><span class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3"/></svg></span><span>Add Photo<small>JPG, JPEG or PNG</small></span></button></div><div class="tool-section"><div class="tool-heading">Signature <span id="signatureState">Not added</span></div><button class="tool-button" id="signatureButton" type="button"><span class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m4 16 4-4 5 5 7-7M4 20h16"/></svg></span><span>Add Signature<small>JPG, JPEG or PNG</small></span></button></div><div class="tool-section"><div class="tool-heading">Selection tools</div><div class="action-grid"><button class="button secondary" id="undoButton" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5M4 9h9a7 7 0 1 1 0 14h-2"/></svg>Undo</button><button class="button secondary" id="deleteButton" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Delete</button><button class="button secondary" id="resetButton" type="button" disabled>Reset position</button><button class="button secondary" id="deselectButton" type="button" disabled> Deselect</button></div></div><div class="status-line" id="statusLine" aria-live="polite"><strong>Ready to edit.</strong><br>Choose a photo or signature to begin.</div><div class="sidebar-footer"><button class="button primary" id="sideSave" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Save PDF</button></div></aside>
+			</div>
+		</section>
+		<input class="hidden" id="pdfInput" type="file" accept="application/pdf,.pdf"><input class="hidden" id="photoInput" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png"><input class="hidden" id="signatureInput" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png">
+		<div class="sr-only" id="announcer" aria-live="assertive"></div>
+	</main>
+	<div class="toast" id="toast" role="status"></div>
+	<script>
+		pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+		const $ = (id) => document.getElementById(id);
+		const state = { pdf:null, file:null, page:1, scale:1, baseViewport:null, overlays:{photo:null, signature:null}, selected:null, history:[] };
+		const els = { empty:$('emptyState'), editor:$('editor'), drop:$('dropZone'), paper:$('paper'), canvas:$('pdf-canvas'), wrap:$('paperWrap'), pdfInput:$('pdfInput'), photoInput:$('photoInput'), signatureInput:$('signatureInput'), save:$('saveButton'), sideSave:$('sideSave'), zoomValue:$('zoomValue'), pageCount:$('pageCount'), status:$('statusLine'), announcer:$('announcer'), toast:$('toast') };
+		function announce(message) { els.announcer.textContent = message; }
+		function toast(message, type='success') { els.toast.textContent=message; els.toast.className='toast show '+type; setTimeout(()=>els.toast.className='toast',3200); }
+		function setStatus(title, detail='') { els.status.innerHTML='<strong>'+title+'</strong>'+(detail?'<br>'+detail:''); }
+		function updateControls() { const hasSelection=!!state.selected; $('deleteButton').disabled=!hasSelection; $('resetButton').disabled=!hasSelection; $('deselectButton').disabled=!hasSelection; $('undoButton').disabled=state.history.length===0; els.save.disabled=!state.pdf; els.sideSave.disabled=!state.pdf; }
+		function openPicker(input) { input.value=''; input.click(); }
+		$('importButton').onclick=()=>openPicker(els.pdfInput); $('browseButton').onclick=()=>openPicker(els.pdfInput); els.drop.onclick=(event)=>{ if(event.target===els.drop || event.target.closest('.upload-icon,.drop-zone h2,.drop-zone p,.drop-zone small')) openPicker(els.pdfInput); }; els.drop.onkeydown=(event)=>{ if(event.key==='Enter'||event.key===' ') { event.preventDefault(); openPicker(els.pdfInput); } };
+		els.drop.ondragover=(event)=>{event.preventDefault();els.drop.classList.add('dragging');}; els.drop.ondragleave=()=>els.drop.classList.remove('dragging'); els.drop.ondrop=(event)=>{event.preventDefault();els.drop.classList.remove('dragging'); const file=event.dataTransfer.files[0]; if(file) loadPdf(file);}; els.pdfInput.onchange=()=>{if(els.pdfInput.files[0])loadPdf(els.pdfInput.files[0]);};
+		async function loadPdf(file) { if(file.type!=='application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) return toast('Please select a valid PDF file.','error'); setStatus('Loading PDF...','Reading your document locally.'); announce('Loading PDF'); try { const bytes=await file.arrayBuffer(); state.pdf=await pdfjsLib.getDocument({data:bytes}).promise; state.file=file; state.page=1; state.overlays={photo:null,signature:null}; state.history=[]; els.empty.classList.add('hidden'); els.editor.classList.remove('hidden'); els.pageCount.textContent='Page 1 of '+state.pdf.numPages; await renderPage(); updateControls(); setStatus('Ready to edit.','Choose a photo or signature to begin.'); announce('PDF loaded and ready to edit'); } catch(error) { state.pdf=null; setStatus('Unable to open this PDF.','Please select a valid PDF.'); announce('Unable to open this PDF'); toast('Unable to open this PDF. Please select a valid PDF.','error'); } }
+		async function renderPage() { const page=await state.pdf.getPage(state.page); const natural=page.getViewport({scale:1}); const available=Math.max(220,els.wrap.clientWidth-30); const fit=Math.min(available/natural.width,(els.wrap.clientHeight-30)/natural.height); state.baseViewport=natural; if(!state.scale || state.scale===1) state.scale=Math.min(1.15,Math.max(.5,fit)); const viewport=page.getViewport({scale:state.scale}); els.canvas.width=viewport.width; els.canvas.height=viewport.height; els.paper.style.width=viewport.width+'px'; els.paper.style.height=viewport.height+'px'; await page.render({canvasContext:els.canvas.getContext('2d'),viewport}).promise; els.zoomValue.textContent=Math.round(state.scale*100)+'%'; renderOverlays(); }
+		function renderOverlays() { els.paper.querySelectorAll('.overlay').forEach(node=>node.remove()); Object.values(state.overlays).forEach(item=>{if(!item||item.page!==state.page)return; const node=document.createElement('div'); node.className='overlay'+(state.selected===item.type?' selected':''); node.dataset.type=item.type; node.style.left=item.x*state.scale+'px'; node.style.top=item.y*state.scale+'px'; node.style.width=item.width*state.scale+'px'; node.style.height=item.height*state.scale+'px'; node.innerHTML='<span class="overlay-label">'+(item.type==='photo'?'PHOTO':'SIGNATURE')+'</span><img src="'+item.src+'" alt="Uploaded '+item.type+'"><span class="resize-handle nw"></span><span class="resize-handle ne"></span><span class="resize-handle sw"></span><span class="resize-handle se"></span>'; node.onpointerdown=(event)=>beginPointer(event,item,node); els.paper.appendChild(node); }); updateControls(); }
+		function addImage(file,type) { if(!file || !file.type.match(/^image\/(jpeg|png)$/)) return toast('Please upload a JPG or PNG image.','error'); const reader=new FileReader(); reader.onload=()=>{const image=new Image(); image.onload=()=>{const maxWidth=type==='photo'?150:220; const width=Math.min(maxWidth,image.width); const height=width*image.height/image.width; saveHistory(); state.overlays[type]={type,src:reader.result,x:Math.max(8,(state.baseViewport.width-width)/2),y:Math.max(8,(state.baseViewport.height-height)/2),width,height,page:state.page,original:{x:Math.max(8,(state.baseViewport.width-width)/2),y:Math.max(8,(state.baseViewport.height-height)/2),width,height}}; state.selected=type; $('photoState').textContent=state.overlays.photo?'Added':'Not added'; $('signatureState').textContent=state.overlays.signature?'Added':'Not added'; renderOverlays(); setStatus((type==='photo'?'Photo':'Signature')+' added.','Drag it to position, then use a corner handle to resize.'); announce(type+' added'); }; image.src=reader.result; }; reader.readAsDataURL(file); }
+		$('photoButton').onclick=()=>openPicker(els.photoInput); $('signatureButton').onclick=()=>openPicker(els.signatureInput); els.photoInput.onchange=()=>addImage(els.photoInput.files[0],'photo'); els.signatureInput.onchange=()=>addImage(els.signatureInput.files[0],'signature');
+		function saveHistory(){state.history.push(JSON.stringify(state.overlays));if(state.history.length>20)state.history.shift();}
+		function beginPointer(event,item,node) { event.preventDefault(); event.stopPropagation(); state.selected=item.type; const resizing=event.target.classList.contains('resize-handle'); const start={clientX:event.clientX,clientY:event.clientY,x:item.x,y:item.y,width:item.width,height:item.height}; const corner=resizing?[...event.target.classList].find(name=>['nw','ne','sw','se'].includes(name)):null; saveHistory(); const move=(moveEvent)=>{const dx=(moveEvent.clientX-start.clientX)/state.scale,dy=(moveEvent.clientY-start.clientY)/state.scale;if(!resizing){item.x=Math.max(0,Math.min(state.baseViewport.width-item.width,start.x+dx));item.y=Math.max(0,Math.min(state.baseViewport.height-item.height,start.y+dy));}else{let newWidth=start.width, newHeight=start.height, newX=start.x, newY=start.y; const ratio=start.width/start.height; if(corner.includes('e'))newWidth=Math.max(35,start.width+dx);if(corner.includes('w')){newWidth=Math.max(35,start.width-dx);newX=start.x+start.width-newWidth;}newHeight=newWidth/ratio;if(corner.includes('n'))newY=start.y+start.height-newHeight;if(newX>=0&&newX+newWidth<=state.baseViewport.width){item.x=newX;item.width=newWidth;}if(newY>=0&&newY+newHeight<=state.baseViewport.height){item.y=newY;item.height=newHeight;}}renderOverlays();}; const end=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);}; window.addEventListener('pointermove',move);window.addEventListener('pointerup',end); renderOverlays(); }
+		els.paper.onclick=(event)=>{if(event.target===els.paper||event.target===els.canvas){state.selected=null;renderOverlays();}};
+		$('deleteButton').onclick=()=>{if(!state.selected)return;saveHistory();state.overlays[state.selected]=null;const deleted=state.selected;state.selected=null;$('photoState').textContent=state.overlays.photo?'Added':'Not added';$('signatureState').textContent=state.overlays.signature?'Added':'Not added';renderOverlays();setStatus('Item removed.','You can add it again at any time.');announce(deleted+' deleted');}; $('deselectButton').onclick=()=>{state.selected=null;renderOverlays();}; $('resetButton').onclick=()=>{if(!state.selected)return;saveHistory();const item=state.overlays[state.selected];Object.assign(item,item.original);renderOverlays();}; $('undoButton').onclick=()=>{if(!state.history.length)return;state.overlays=JSON.parse(state.history.pop());state.selected=null;$('photoState').textContent=state.overlays.photo?'Added':'Not added';$('signatureState').textContent=state.overlays.signature?'Added':'Not added';renderOverlays();};
+		function changeZoom(amount){state.scale=Math.max(.4,Math.min(2.4,state.scale+amount));renderPage();} $('zoomIn').onclick=()=>changeZoom(.1);$('zoomOut').onclick=()=>changeZoom(-.1);$('fitPage').onclick=()=>{state.scale=0;renderPage();};
+		document.onkeydown=(event)=>{if(!state.selected)return;const item=state.overlays[state.selected];if(event.key==='Escape'){$('deselectButton').click();return;}if(event.key==='Delete'||event.key==='Backspace'){$('deleteButton').click();return;}const step=event.shiftKey?10:2;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();saveHistory();if(event.key==='ArrowLeft')item.x=Math.max(0,item.x-step);if(event.key==='ArrowRight')item.x=Math.min(state.baseViewport.width-item.width,item.x+step);if(event.key==='ArrowUp')item.y=Math.max(0,item.y-step);if(event.key==='ArrowDown')item.y=Math.min(state.baseViewport.height-item.height,item.y+step);renderOverlays();}};
+		async function exportPdf(){if(!state.pdf||!state.file)return;els.save.disabled=true;els.sideSave.disabled=true;setStatus('Preparing PDF...','Embedding your images locally.');announce('Preparing PDF');try{const source=await state.file.arrayBuffer();const pdfDocument=await PDFLib.PDFDocument.load(source);const pages=pdfDocument.getPages();for(let index=0;index<pages.length;index++){const page=pages[index];const pageHeight=page.getHeight();for(const item of Object.values(state.overlays).filter(item=>item&&item.page===index+1)){const image=item.src.startsWith('data:image/jpeg')?await pdfDocument.embedJpg(item.src):await pdfDocument.embedPng(item.src);page.drawImage(image,{x:item.x,y:pageHeight-item.y-item.height,width:item.width,height:item.height});}}const bytes=await pdfDocument.save();const blob=new Blob([bytes],{type:'application/pdf'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='pan-card-completed.pdf';link.click();URL.revokeObjectURL(link.href);setStatus('PDF saved successfully','Your completed document has been downloaded.');announce('PDF saved successfully');toast('PDF saved successfully','success');}catch(error){setStatus('Unable to save PDF.','Please try again.');announce('Unable to save PDF');toast('Unable to save PDF. Please try again.','error');}finally{updateControls();}} $('saveButton').onclick=exportPdf;$('sideSave').onclick=exportPdf;
+		window.addEventListener('resize',()=>{if(state.pdf)renderPage();});
+	</script>
+</body>
+</html>
